@@ -3,14 +3,14 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 
 export function authMiddleware(req:Request,res:Response,next:NextFunction){
-    const authHeader =  req.headers.authorization;
-    if(!authHeader || !authHeader.startsWith("Bearer ")) {
-         res.status(401).json({ message: "Unauthorized" });
-         return;
-    }
+//     const authHeader =  req.headers.authorization;
+//     if(!authHeader || !authHeader.startsWith("Bearer ")) {
+//          res.status(401).json({ message: "Unauthorized" });
+//          return;
+//     }
 
-    const token = authHeader.split(" ")[1];
-
+//     const token = authHeader.split(" ")[1];
+    const token = req.cookies.token;
     if(!token) {
          res.status(401).json({ message: "Unauthorized" });
          return;

@@ -5,10 +5,16 @@ import { JWT_SECRET } from "@repo/backend-common/config";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { authMiddleware } from "./middleware";
+import cors from 'cors'
+import cookieParser from 'cookie-parser'
 const app = express();
 
 app.use(express.json()); // Middleware to parse JSON bodies
-
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}))
+app.use(cookieParser());
 app.get("/", (req, res) => {
     res.send("Hello");
 })
@@ -17,13 +23,13 @@ app.get("/", (req, res) => {
 app.post("/signup", async (req, res) => {
     const input = await req.body;
     try {
-        const validatedInput = UserSignupSchema.safeParse(input);
+        const validatedInput = UserSignupSchema.safeParse(input.data);
         if (!validatedInput.success) {
             res.status(400).json({ message: "Invalid input" });
             return;
         }
 
-        const { email, password, name } = input;
+        const { email, password, name } = input.data;
         const existingUser = await prisma.user.findUnique({
             where: { email }
         });
@@ -53,12 +59,12 @@ app.post("/signup", async (req, res) => {
 app.post("/signin", async (req, res) => {
     const input = await req.body;
     try {
-        const validatedInput = UserSigninSchema.safeParse(input);
+        const validatedInput = UserSigninSchema.safeParse(input.data);
         if (!validatedInput.success) {
             res.status(400).json({ message: "Invalid input" });
         }
 
-        const { email, password } = input;
+        const { email, password } = input.data;
         const user = await prisma.user.findUnique({
             where: { email }
         });
@@ -77,6 +83,12 @@ app.post("/signin", async (req, res) => {
 
         const token = jwt.sign({ userId: user.id }, JWT_SECRET);
 
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: false, // set to true in production (with HTTPS)
+            sameSite: 'lax',
+        });
+
         res.status(200).json({ message: "Signin successful", token });
     } catch {
         res.status(500).json({ message: "Internal server error" });
@@ -87,7 +99,7 @@ app.post("/signin", async (req, res) => {
 app.post("/create-room", authMiddleware, async (req, res) => {
     const input = await req.body;
     try {
-        const validatedInput = CreateRoomSchema.safeParse(input);
+        const validatedInput = CreateRoomSchema.safeParse(input.data);
         if (!validatedInput.success) {
             res.status(400).json({ message: "Invalid input" });
             return;
@@ -102,7 +114,7 @@ app.post("/create-room", authMiddleware, async (req, res) => {
 
         const room = await prisma.room.create({
             data: {
-                slug: input.name,
+                slug: input.data.name,
                 adminId: userId
             }
         })
@@ -115,7 +127,7 @@ app.post("/create-room", authMiddleware, async (req, res) => {
 })
 
 // Get all chats in a room
-app.get("/chats/:roomId", authMiddleware, async (req,res) => {
+app.get("/chats/:roomId", authMiddleware, async (req, res) => {
     const roomId = Number(req.params.roomId);
 
     try {
@@ -130,11 +142,28 @@ app.get("/chats/:roomId", authMiddleware, async (req,res) => {
         })
 
         res.status(200).json(chats);
-    } catch{
+    } catch {
         res.status(500).json({ message: "Internal server error" });
     }
 })
 
-app.listen(3001, ()=>{
+// Get room by slug
+app.get("/room/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    try {
+        const room = await prisma.room.findFirst({
+            where: {
+                slug: slug,
+            }
+        })
+
+        res.status(200).json(room);
+    } catch {
+        res.status(500).json({ message: "Internal server error" });
+    }
+})
+
+
+app.listen(3001, () => {
     console.log("Server is running on port 3001")
 })

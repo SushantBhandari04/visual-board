@@ -2,7 +2,7 @@ import { WebSocketServer } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { prisma } from "@repo/db/client"
-import UserStore from "./UserStore";
+import UserStore from "./userStore";
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -25,15 +25,30 @@ setInterval(async () => {
 }, 1000); // Process every second
 
 wss.on("connection", function (socket, request) {
-    const url = request.url;  // ws://localhost:8080?token=123123
+    // const url = request.url;  // ws://localhost:8080?token=123123
 
-    if (!url) {
-        socket.close();
-        return;
+    // if (!url) {
+    //     socket.close();
+    //     return;
+    // }
+
+    // const queryParams = new URLSearchParams(url.split('?')[1]);
+    // const token = queryParams.get("token");
+
+    const cookieHeader = request.headers.cookie; // e.g. "token=abc123; other=val"
+    let token: string | undefined;
+
+    if (cookieHeader) {
+        const cookies = cookieHeader.split(";").map(c => c.trim());
+        for (const c of cookies) {
+            if (c.startsWith("token=")) {
+                token = c.substring("token=".length);
+                break;
+            }
+        }
     }
 
-    const queryParams = new URLSearchParams(url.split('?')[1]);
-    const token = queryParams.get("token");
+    console.log("Token received:", token);
 
     if (!token) {
         socket.close();
@@ -87,7 +102,6 @@ wss.on("connection", function (socket, request) {
 
             // Add room to user in UserStore
             userStore.addRoomToUser(userId, parsedData.roomId);
-            socket.send("Joined room: " + parsedData.roomId);
         }
 
         if (parsedData.type === queryType.leave_room) {
@@ -104,7 +118,6 @@ wss.on("connection", function (socket, request) {
 
             // Remove room from user in UserStore
             userStore.removeRoomFromUser(userId, parsedData.roomId);
-            socket.send("Left room: " + parsedData.roomId);
         }
         if (parsedData.type === queryType.chat) {
             const room = await prisma.room.findFirst({
