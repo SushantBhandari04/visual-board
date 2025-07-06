@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { set } from "react-hook-form";
 
 export default function ChatRoomClient({ chats, roomId }: { chats: any[], roomId: number }) {
-    const { loading, socket } = useSocket();
+    const { loading, socket } = useSocket(roomId as unknown as string);
     const [chat, setChats] = useState(chats);
     const [msg, setMsg] = useState("");
 

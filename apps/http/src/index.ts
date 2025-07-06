@@ -140,6 +140,7 @@ app.get("/chats/:roomId", authMiddleware, async (req, res) => {
             },
             take: 50
         })
+        console.log(chats);
 
         res.status(200).json(chats);
     } catch {
